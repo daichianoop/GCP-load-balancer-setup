@@ -1,5 +1,8 @@
-# GCP HTTP Load Balancer Setup
-<img src="https://github.com/daichianoop/GCP-load-balancer-setup/blob/main/gcp.png?raw=true" alt="logo" width="20" />
+<div align="center">
+  <img src="https://github.com/daichianoop/GCP-load-balancer-setup/blob/main/gcp.png?raw=true" alt="logo" width="50" />
+  # GCP HTTP Load Balancer Setup
+</div>
+
 
 <div align="center">
   <div>
