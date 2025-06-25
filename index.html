@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GCP HTTP Load Balancer Workflow Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f2631; /* charcoal */
+            color: #f0f8ff; /* AliceBlue for high contrast text */
+        }
+        .highlight-workflow-component {
+            background-color: #000102; /* emerald-200 for vibrant highlight */
+            border-color: #ffffff; /* emerald-400, stronger border */
+        
+            box-shadow: 0 0 25px rgba(167, 243, 208, 0.7); /* vibrant shadow */
+            transition: all 0.3s ease-in-out;
+        }
+        .workflow-arrow {
+            color: #627952; /* hookers-green for base arrows */
+            transition: color 0.3s ease-in-out;
+        }
+        .highlight-arrow {
+            color: #f0f8ff; /* AliceBlue for strong arrow contrast */
+            animation: pulse-arrow 1s infinite alternate;
+        }
+        @keyframes pulse-arrow {
+            from { opacity: 0.6; }
+            to { opacity: 1; }
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .setup-field-name {
+            font-weight: 600;
+            color: #cad2c5; /* ash-gray for distinct field names */
+        }
+        .code-block {
+            background-color: #354f52; /* dark-slate-gray */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: #cad2c5; /* ash-gray */
+            border: 1px solid #52796f; /* hookers-green border */
+        }
+        /* Sidebar specific styles */
+        .sidebar {
+            transition: transform 0.3s ease-out;
+            transform: translateX(-100%);
+            z-index: 50;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 75%;
+            max-width: 300px;
+            background-color: #354f52; /* dark-slate-gray */
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            display: none;
+        }
+        .overlay.active {
+            display: block;
+        }
+        /* Custom button styling for better contrast */
+        .btn-primary {
+            background-color: #a7f3d0; /* emerald-200 */
+            color: #2f3e46; /* charcoal */
+            font-weight: 700;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px; /* full rounded */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease-in-out;
+        }
+        .btn-primary:hover {
+            background-color: #34d399; /* emerald-400 */
+            color: #2f3e46; /* charcoal */
+            transform: scale(1.05);
+        }
+        .btn-secondary {
+            background-color: #52796f; /* hookers-green */
+            color: #f0f8ff; /* AliceBlue */
+            font-weight: 700;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px; /* full rounded */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease-in-out;
+        }
+        .btn-secondary:hover {
+            background-color: #1b2729; /* dark-slate-gray */
+            color: #f0f8ff; /* AliceBlue */
+            transform: scale(1.05);
+        }
+        .btn-primary:disabled, .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <!-- Chosen Palette: Deep Forest (with vibrant accents) -->
+    <!-- Application Structure Plan: The SPA maintains a scrollable, multi-section layout for intuitive content exploration. It now features a hidden, pop-up sidebar for navigation, activated by a hamburger icon, making it highly mobile-responsive and decluttering the top bar. The content sections (Hero, Workflow Visualization, GCP Components Overview, Setup Guide, Why Load Balancing Matters, Common Challenges & Solutions) are preserved to offer a guided and interactive learning path. This structure prioritizes user understanding and ease of navigation by allowing on-demand access to navigation, separating core workflow, detailed information, practical deployment steps, and troubleshooting advice. The dark theme with enhanced contrast provides a modern, professional aesthetic, reducing eye strain. -->
+    <!-- Visualization & Content Choices: The "Workflow Visualization" continues to use HTML/CSS-styled divs with Unicode arrows, dynamically highlighted and animated by Vanilla JS for step-by-step progression. This remains effective for explaining a sequential process. No quantitative data requires complex charting; hence, Chart.js/Plotly.js are not explicitly used for new visualizations, but their CDNs are retained for potential future extension. The "GCP Components Overview," "Why Load Balancing Matters," "Common Challenges & Solutions," and the new "Setup Guide" sections all utilize collapsible HTML/Tailwind accordions with Vanilla JS toggle functionality. This method is efficient for presenting structured text, data points, and code snippets (using `pre` tags for clarity in the Setup Guide), ensuring concise yet accessible information. All visual elements, including icons, are rendered using Unicode characters or Tailwind/CSS, adhering to the NO SVG/Mermaid constraint. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <div class="min-h-screen bg-charcoal text-f0f8ff flex flex-col items-center">
+        <!-- Header -->
+        <header class="w-full bg-dark-slate-gray shadow-lg py-4 px-6 md:px-8">
+            <div class="container mx-auto flex justify-between items-center">
+                <div class="text-2xl font-semibold text-f0f8ff flex items-center gap-2">
+                    <div class="flex items-center gap-3">
+                        <img src="/gcp.png" alt="logo" class="size-10">
+                        <h4 class="text-lg">GCP Load Balancer Explorer</h4>
+                    </div>
+                </div>
+                <!-- Hamburger Icon for Mobile/Tablet -->
+                <button id="sidebar-toggle" class="md:hidden text-f0f8ff focus:outline-none">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </button>
+                <!-- Desktop Navigation -->
+                <nav class="hidden md:block">
+                    <ul class="flex space-x-6">
+                        <li><a href="#workflow" class="text-cambridge-blue hover:text-a7f3d0 transition-colors font-medium">Workflow</a></li>
+                        <li><a href="#components" class="text-cambridge-blue hover:text-a7f3d0 transition-colors font-medium">Components</a></li>
+                        <li><a href="#setup-guide" class="text-cambridge-blue hover:text-a7f3d0 transition-colors font-medium">Setup Guide</a></li>
+                        <li><a href="#benefits" class="text-cambridge-blue hover:text-a7f3d0 transition-colors font-medium">Why It Matters</a></li>
+                        <li><a href="#troubleshooting" class="text-cambridge-blue hover:text-a7f3d0 transition-colors font-medium">Troubleshooting</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Sidebar Navigation -->
+        <div id="sidebar" class="sidebar fixed inset-y-0 left-0 w-64 bg-dark-slate-gray p-6 shadow-xl flex flex-col justify-start items-start md:hidden">
+            <button id="sidebar-close" class="text-f0f8ff self-end mb-8 focus:outline-none">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <nav class="w-full">
+                <ul class="flex flex-col space-y-4">
+                    <li><a href="#workflow" class="block py-2 px-4 text-f0f8ff hover:bg-hookers-green rounded-lg font-medium transition-colors">Workflow</a></li>
+                    <li><a href="#components" class="block py-2 px-4 text-f0f8ff hover:bg-hookers-green rounded-lg font-medium transition-colors">Components</a></li>
+                    <li><a href="#setup-guide" class="block py-2 px-4 text-f0f8ff hover:bg-hookers-green rounded-lg font-medium transition-colors">Setup Guide</a></li>
+                    <li><a href="#benefits" class="block py-2 px-4 text-f0f8ff hover:bg-hookers-green rounded-lg font-medium transition-colors">Why It Matters</a></li>
+                    <li><a href="#troubleshooting" class="block py-2 px-4 text-f0f8ff hover:bg-hookers-green rounded-lg font-medium transition-colors">Troubleshooting</a></li>
+                    <li>
+                        <a href="https://docs.google.com/document/d/15S0RKZYjUYOkYfHxnJteE5YHNA26iGv8UGzpKvacTas/edit?usp=sharing" target="_blank" class="block w-full text-center mt-6 btn-primary">Go to Docs ↗️</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        <div id="overlay" class="overlay"></div>
+
+        <!-- Hero Section -->
+        <section class="w-full bg-gradient-to-br from-charcoal to-dark-slate-gray py-20 px-6 md:px-8 text-center rounded-b-xl shadow-md">
+            <div class="container mx-auto max-w-3xl">
+                <h2 class="text-5xl font-extrabold text-f0f8ff mb-6 leading-tight">Creating GCP HTTP Load Balancing</h2>
+                <p class="text-xl text-cambridge-blue mb-8 font-light">Dive into the architecture and workflow of Google Cloud's HTTP Load Balancer, understand its components, benefits, and common challenges. Explore how traffic flows in a highly available web application setup.</p>
+                <a href="#workflow" class="inline-block btn-primary">Start Exploring Workflow ▼</a>
+            </div>
+        </section>
+
+        <!-- Workflow Visualization Section -->
+        <section id="workflow" class="w-full py-16 px-6 md:px-8 bg-dark-slate-gray shadow-inner">
+            <div class="container mx-auto max-w-5xl">
+                <h3 class="text-4xl font-bold text-f0f8ff mb-8 text-center">Traffic Flow: Step-by-Step</h3>
+                <p class="text-lg text-cambridge-blue mb-10 text-center">This section illustrates the journey of an HTTP request through the GCP Load Balancer setup. Use the navigation buttons to move through each stage and observe the active components and the flow.</p>
+
+                <div class="bg-hookers-green p-6 md:p-8 rounded-2xl shadow-lg border border-dark-slate-gray">
+                    <!-- Workflow Diagram -->
+                    <div class="flex flex-wrap justify-center items-center gap-y-6 gap-x-4 mb-8">
+                        <div id="user-component" class="workflow-comp  p-4 rounded-xl shadow-md text-center text-sm font-semibold bg-dark-slate-gray border border-hookers-green w-28 h-28 flex flex-col justify-center items-center text-cambridge-blue">
+                            🧑‍💻 <br> User
+                        </div>
+                        <span id="arrow-user-to-ip" class="workflow-arrow text-3xl">➡️</span>
+                        <div id="static-ip-component" class="workflow-comp p-4 rounded-xl shadow-md text-center text-sm font-semibold bg-dark-slate-gray border border-hookers-green w-28 h-28 flex flex-col justify-center items-center text-cambridge-blue">
+                            🌐 <br> Global Static IP
+                        </div>
+                        <span id="arrow-ip-to-forwarding" class="workflow-arrow text-3xl">➡️</span>
+                        <div id="forwarding-rule-component" class="workflow-comp p-4 rounded-xl shadow-md text-center text-sm font-semibold bg-dark-slate-gray border border-hookers-green w-28 h-28 flex flex-col justify-center items-center text-cambridge-blue">
+                            🚦 <br> Forwarding Rule
+                        </div>
+                        <span id="arrow-forwarding-to-proxy" class="workflow-arrow text-3xl">➡️</span>
+                        <div id="target-proxy-component" class="workflow-comp p-4 rounded-xl shadow-md text-center text-sm font-semibold bg-dark-slate-gray border border-hookers-green w-28 h-28 flex flex-col justify-center items-center text-cambridge-blue">
+                            🔗 <br> Target HTTP Proxy
+                        </div>
+                        <span id="arrow-proxy-to-urlmap" class="workflow-arrow text-3xl md:hidden">⬇️</span>
+                        <span id="arrow-proxy-to-urlmap-desktop" class="workflow-arrow text-3xl hidden md:inline-block">⬇️</span>
+                        <div id="url-map-component" class="workflow-comp p-4 rounded-xl shadow-md text-center text-sm font-semibold bg-dark-slate-gray border border-hookers-green w-28 h-28 flex flex-col justify-center items-center text-cambridge-blue">
+                            🗺️ <br> URL Map
+                        </div>
+                        <span id="arrow-urlmap-to-backend" class="workflow-arrow text-3xl md:hidden">⬇️</span>
+                        <span id="arrow-urlmap-to-backend-desktop" class="workflow-arrow text-3xl hidden md:inline-block">⬇️</span>
+                        <div id="backend-service-component" class="workflow-comp p-4 rounded-xl shadow-md text-center text-sm font-semibold bg-dark-slate-gray border border-hookers-green w-28 h-28 flex flex-col justify-center items-center text-cambridge-blue">
+                            ⚙️ <br> Backend Service
+                        </div>
+                        <span id="arrow-backend-to-healthcheck" class="workflow-arrow text-3xl md:hidden">⬇️</span>
+                        <span id="arrow-backend-to-healthcheck-desktop" class="workflow-arrow text-3xl hidden md:inline-block">⬇️</span>
+                        <div id="health-check-component" class="workflow-comp p-4 rounded-xl shadow-md text-center text-sm font-semibold bg-dark-slate-gray border border-hookers-green w-28 h-28 flex flex-col justify-center items-center text-cambridge-blue">
+                            ❤️ <br> Health Check
+                        </div>
+                        <span id="arrow-healthcheck-to-instancegroup" class="workflow-arrow text-3xl">➡️</span>
+                        <div id="instance-group-component" class="workflow-comp p-4 rounded-xl shadow-md text-center text-sm font-semibold bg-dark-slate-gray border border-hookers-green w-28 h-28 flex flex-col justify-center items-center text-cambridge-blue">
+                            📦 <br> Instance Group
+                        </div>
+                        <span id="arrow-instancegroup-to-vm" class="workflow-arrow text-3xl">➡️</span>
+                        <div id="vm-instances-component" class="workflow-comp p-4 rounded-xl shadow-md text-center text-sm font-semibold bg-dark-slate-gray border border-hookers-green w-28 h-28 flex flex-col justify-center items-center text-cambridge-blue">
+                            🖥️ <br> VM Instances
+                        </div>
+                        <span id="arrow-vm-to-user" class="workflow-arrow text-3xl">↩️</span>
+                    </div>
+
+                    <!-- Workflow Description -->
+                    <div class="mb-8 p-6 bg-dark-slate-gray border border-hookers-green rounded-lg shadow-inner">
+                        <p id="workflow-description" class="text-lg text-ash-gray font-medium text-center"></p>
+                    </div>
+
+                    <!-- Workflow Navigation -->
+                    <div class="flex justify-center space-x-4">
+                        <button id="prev-step-btn" class="btn-secondary">
+                            ⬅️ Previous Step
+                        </button>
+                        <button id="next-step-btn" class="btn-primary">
+                            Next Step ➡️
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- GCP Components Overview Section -->
+        <section id="components" class="w-full py-16 px-6 md:px-8 bg-charcoal">
+            <div class="container mx-auto max-w-5xl">
+                <h3 class="text-4xl font-bold text-f0f8ff mb-8 text-center">GCP Components Overview</h3>
+                <p class="text-lg text-cambridge-blue mb-10 text-center">Understand the individual roles of each Google Cloud Platform service within the load balancing architecture. Click on any component to reveal its detailed description and purpose.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Component Cards -->
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="vpc">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">Virtual Private Cloud (VPC) & Subnet</h4>
+                        <p class="text-cambridge-blue text-sm">Logical network and IP range to contain resources.</p>
+                    </div>
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="firewall">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">Firewall Rules</h4>
+                        <p class="text-cambridge-blue text-sm">Allow ingress traffic on ports 80 (HTTP) and 22 (SSH).</p>
+                    </div>
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="vm">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">VM Instances (Web Servers)</h4>
+                        <p class="text-cambridge-blue text-sm">Web servers configured with Apache and a unique index.html.</p>
+                    </div>
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="instanceGroup">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">Unmanaged Instance Group</h4>
+                        <p class="text-cambridge-blue text-sm">Connects the VMs to the backend service.</p>
+                    </div>
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="healthCheck">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">HTTP Health Check</h4>
+                        <p class="text-cambridge-blue text-sm">Ensures only healthy VMs receive traffic.</p>
+                    </div>
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="backendService">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">Backend Service</h4>
+                        <p class="text-cambridge-blue text-sm">Connects the instance group to the load balancer.</p>
+                    </div>
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="urlMap">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">URL Map</h4>
+                        <p class="text-cambridge-blue text-sm">Routes incoming HTTP traffic to the correct backend.</p>
+                    </div>
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="targetProxy">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">Target HTTP Proxy</h4>
+                        <p class="text-cambridge-blue text-sm">Uses the URL map to forward requests.</p>
+                    </div>
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="forwardingRule">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">Forwarding Rule</h4>
+                        <p class="text-cambridge-blue text-sm">Listens for external traffic and routes it to the proxy.</p>
+                    </div>
+                    <div class="component-card bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green cursor-pointer hover:shadow-lg transition-shadow duration-200" data-component="staticIp">
+                        <h4 class="text-xl font-semibold text-f0f8ff mb-2">Reserved Global Static IP Address</h4>
+                        <p class="text-cambridge-blue text-sm">Public global IP used to access the application.</p>
+                    </div>
+                </div>
+
+                <!-- Component Detail Display -->
+                <div id="component-detail" class="hidden mt-8 p-8 bg-hookers-green border border-dark-slate-gray rounded-2xl shadow-lg">
+                    <h4 id="detail-title" class="text-2xl font-bold text-f0f8ff mb-4"></h4>
+                    <p id="detail-description" class="text-lg text-cambridge-blue mb-4"></p>
+                    <p id="detail-purpose" class="text-base text-cambridge-blue italic"></p>
+                    <button id="close-detail-btn" class="mt-6 btn-primary">Close</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Setup Guide Section -->
+        <section id="setup-guide" class="w-full py-16 px-6 md:px-8 bg-gradient-to-br from-charcoal to-dark-slate-gray">
+            <div class="container mx-auto max-w-4xl">
+                <h3 class="text-4xl font-bold text-f0f8ff mb-8 text-center">GCP HTTP Load Balancer: Step-by-Step Setup Guide (Free Tier Compliant)</h3>
+                <p class="text-lg text-cambridge-blue mb-10 text-center">This section provides a detailed, Free Tier-compliant guide to deploying an HTTP Load Balancer on Google Cloud Platform, focusing on a single-zone setup. Follow these steps to build your highly available web application.</p>
+
+                <div class="space-y-6">
+                    <!-- STEP 1 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 1: Create Custom VPC Network <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">VPC network &rarr; VPC networks &rarr; Create VPC network</span></p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> custom-vpc</div>
+                                <div><span class="setup-field-name">Subnet creation mode:</span> Custom</div>
+                                <div><span class="setup-field-name">Subnet name:</span> web-subnet</div>
+                                <div><span class="setup-field-name">Region:</span> us-central1</div>
+                                <div><span class="setup-field-name">IP range:</span> 10.0.1.0/24</div>
+                                <div><span class="setup-field-name">Private Google Access:</span> Off</div>
+                                <div><span class="setup-field-name">Routing mode:</span> Regional</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff">✅ Click Create</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 2 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 2: Create Firewall Rules <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">VPC network &rarr; Firewall rules &rarr; Create Firewall Rule</span></p>
+                            <h5 class="font-semibold text-f0f8ff mb-2">Rule A: Allow HTTP</h5>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> allow-http</div>
+                                <div><span class="setup-field-name">Network:</span> custom-vpc</div>
+                                <div><span class="setup-field-name">Direction of traffic:</span> Ingress</div>
+                                <div><span class="setup-field-name">Action on match:</span> Allow</div>
+                                <div><span class="setup-field-name">Targets:</span> All instances in the network</div>
+                                <div><span class="setup-field-name">Source IP range:</span> 0.0.0.0/0</div>
+                                <div><span class="setup-field-name">Protocols and Ports:</span> tcp:80</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff mb-6">✅ Create</p>
+
+                            <h5 class="font-semibold text-f0f8ff mb-2">Rule B: Allow SSH</h5>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> allow-ssh</div>
+                                <div><span class="setup-field-name">Network:</span> custom-vpc</div>
+                                <div><span class="setup-field-name">Direction of traffic:</span> Ingress</div>
+                                <div><span class="setup-field-name">Action on match:</span> Allow</div>
+                                <div><span class="setup-field-name">Targets:</span> All instances in the network</div>
+                                <div><span class="setup-field-name">Source IP range:</span> 0.0.0.0/0</div>
+                                <div><span class="setup-field-name">Protocols and Ports:</span> tcp:22</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff">✅ Create</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 3: Create Two VMs (Same Zone) <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">Compute Engine &rarr; VM instances &rarr; Create instance</span></p>
+                            <h5 class="font-semibold text-f0f8ff mb-2">VM #1: web-server-1</h5>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> web-server-1</div>
+                                <div><span class="setup-field-name">Region:</span> us-central1</div>
+                                <div><span class="setup-field-name">Zone:</span> us-central1-c</div>
+                                <div><span class="setup-field-name">Machine type:</span> e2-micro</div>
+                                <div><span class="setup-field-name">Boot disk:</span> Debian/Ubuntu</div>
+                                <div><span class="setup-field-name">VPC network:</span> custom-vpc</div>
+                                <div><span class="setup-field-name">Subnet:</span> web-subnet</div>
+                                <div><span class="setup-field-name">External IP:</span> Ephemeral</div>
+                                <div><span class="setup-field-name">Firewall:</span> ✅ Allow HTTP, ✅ Allow HTTPS</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff mb-2">Startup script:</p>
+                            <pre class="code-block mb-4">#! /bin/bash
+sudo apt update
+sudo apt install apache2 -y
+echo "Welcome to Server 1" | sudo tee /var/www/html/index.html
+sudo systemctl start apache2</pre>
+                            <p class="font-bold text-f0f8ff mb-6">✅ Click Create</p>
+
+                            <h5 class="font-semibold text-f0f8ff mb-2">VM #2: web-server-2</h5>
+                            <p class="mb-4">Same settings as VM #1, except for Name and Startup script:</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> web-server-2</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff mb-2">Startup script:</p>
+                            <pre class="code-block mb-4">#! /bin/bash
+sudo apt update
+sudo apt install apache2 -y
+echo "Welcome to Server 2" | sudo tee /var/www/html/index.html
+sudo systemctl start apache2</pre>
+                            <p class="font-bold text-f0f8ff">✅ Click Create</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 4 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 4: Create Unmanaged Instance Group <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">Compute Engine &rarr; Instance groups &rarr; Create instance group</span></p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> web-group</div>
+                                <div><span class="setup-field-name">Group Type:</span> Unmanaged</div>
+                                <div><span class="setup-field-name">Location:</span> Single zone</div>
+                                <div><span class="setup-field-name">Zone:</span> us-central1-c</div>
+                                <div><span class="setup-field-name">Network:</span> custom-vpc</div>
+                                <div><span class="setup-field-name">Subnet:</span> web-subnet</div>
+                                <div><span class="setup-field-name">VMs:</span> Select web-server-1 and web-server-2</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff">✅ Click Create</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 5 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 5: Create Health Check <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">Network services &rarr; Load balancing &rarr; Health checks &rarr; Create Health Check</span></p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> http-health-check</div>
+                                <div><span class="setup-field-name">Protocol:</span> HTTP</div>
+                                <div><span class="setup-field-name">Port:</span> 80</div>
+                                <div><span class="setup-field-name">Request path:</span> /</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff">✅ Click Create</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 6 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 6: Create Backend Service <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">Network services &rarr; Load balancing &rarr; Backend configuration &rarr; Create backend service</span></p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> web-backend</div>
+                                <div><span class="setup-field-name">Protocol:</span> HTTP</div>
+                                <div><span class="setup-field-name">Scope:</span> Global</div>
+                                <div><span class="setup-field-name">Backends:</span> Select web-group</div>
+                                <div><span class="setup-field-name">Port numbers:</span> 80</div>
+                                <div><span class="setup-field-name">Health check:</span> http-health-check</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff">✅ Click Create</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 7 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 7: Create URL Map <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">Network services &rarr; Load balancing &rarr; URL maps &rarr; Create URL map</span></p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> web-url-map</div>
+                                <div><span class="setup-field-name">Default backend service:</span> web-backend</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff">✅ Click Create</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 8 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 8: Create Target HTTP Proxy <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">Network services &rarr; Load balancing &rarr; Target proxies &rarr; Create target HTTP proxy</span></p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> web-proxy</div>
+                                <div><span class="setup-field-name">URL map:</span> web-url-map</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff">✅ Click Create</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 9 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 9: Reserve Global Static IP <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">VPC network &rarr; External IP addresses &rarr; Reserve static IP</span></p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> web-ip</div>
+                                <div><span class="setup-field-name">Type:</span> Global</div>
+                                <div><span class="setup-field-name">IP version:</span> IPv4</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff">✅ Click Reserve</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 10 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 10: Create Forwarding Rule <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">📍 Navigation:</span> <span class="text-f0f8ff">Network services &rarr; Load balancing &rarr; Create Load Balancer &rarr; HTTP(S) Load Balancing</span></p>
+                            <p class="font-bold text-f0f8ff mb-2">Follow the guided wizard:</p>
+                            <h5 class="font-semibold text-f0f8ff mb-2">🔹 Frontend Configuration</h5>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                                <div><span class="setup-field-name">Name:</span> web-forwarding-rule</div>
+                                <div><span class="setup-field-name">Protocol:</span> HTTP</div>
+                                <div><span class="setup-field-name">IP address:</span> web-ip</div>
+                                <div><span class="setup-field-name">Port:</span> 80</div>
+                            </div>
+                            <p class="font-bold text-f0f8ff mb-6">Click Done</p>
+
+                            <h5 class="font-semibold text-f0f8ff mb-2">🔹 Backend Configuration</h5>
+                            <p class="mb-2"><span class="setup-field-name">Select existing backend service:</span> web-backend</p>
+                            <p class="font-bold text-f0f8ff mb-6">Click Next, review everything, then:</p>
+                            <p class="font-bold text-f0f8ff">✅ Click Create</p>
+                        </div>
+                    </div>
+
+                    <!-- STEP 11 -->
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            ✅ STEP 11: Test the Load Balancer <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-4"><span class="font-bold">Open your browser:</span></p>
+                            <pre class="code-block mb-4">http://&lt;your-global-static-ip&gt;</pre>
+                            <p class="font-bold text-f0f8ff mb-2">✅ You should see either:</p>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>Welcome to Server 1</li>
+                                <li>Welcome to Server 2 (on refresh)</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Why Load Balancing Matters Section -->
+        <section id="benefits" class="w-full py-16 px-6 md:px-8 bg-charcoal">
+            <div class="container mx-auto max-w-4xl">
+                <h3 class="text-4xl font-bold text-f0f8ff mb-8 text-center">Why Load Balancing Matters</h3>
+                <p class="text-lg text-cambridge-blue mb-10 text-center">Load balancing is indispensable for modern web applications. Discover the key advantages and diverse applications that make it a crucial architectural decision.</p>
+
+                <div class="space-y-4">
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            High Availability <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            By distributing traffic across multiple servers, if one server fails, the others can continue to handle requests, preventing service outages and ensuring continuous operation.
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Scalability <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            Load balancers enable horizontal scaling. As traffic increases, new servers can be added to the backend pool, and the load balancer automatically includes them in the distribution, allowing applications to handle fluctuating loads seamlessly.
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Improved Performance <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            Distributing requests across multiple servers reduces the load on individual servers, leading to faster response times and a more responsive user experience.
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Fault Tolerance and Redundancy <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            Load balancers perform health checks on backend instances. If an instance becomes unhealthy, it's temporarily taken out of rotation, ensuring that user requests are only served by fully functional servers.
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Efficient Resource Utilization <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            Load balancers can employ various algorithms (e.g., round-robin, least connections) to distribute traffic optimally, maximizing the use of your computing resources.
+                        </div>
+                    </div>
+                </div>
+
+                <h4 class="text-3xl font-bold text-f0f8ff mt-12 mb-6 text-center">Common Use Cases</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <h5 class="text-xl font-semibold text-f0f8ff mb-2">🛒 E-commerce Platforms</h5>
+                        <p class="text-cambridge-blue">Essential for handling traffic spikes during sales events, ensuring smooth checkout processes.</p>
+                    </div>
+                    <div class="bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <h5 class="text-xl font-semibold text-f0f8ff mb-2">▶️ Streaming Services</h5>
+                        <p class="text-cambridge-blue">Distributing video and audio content to millions of users efficiently across global data centers.</p>
+                    </div>
+                    <div class="bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <h5 class="text-xl font-semibold text-f0f8ff mb-2">🔌 API Gateways</h5>
+                        <p class="text-cambridge-blue">Managing and routing requests to various microservices within a complex application architecture.</p>
+                    </div>
+                    <div class="bg-dark-slate-gray p-6 rounded-2xl shadow-md border border-hookers-green">
+                        <h5 class="text-xl font-semibold text-f0f8ff mb-2">🎮 Online Gaming</h5>
+                        <p class="text-cambridge-blue">Distributing player connections across multiple game servers to maintain low latency and high performance.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Common Challenges & Solutions Section -->
+        <section id="troubleshooting" class="w-full py-16 px-6 md:px-8 bg-dark-slate-gray shadow-inner">
+            <div class="container mx-auto max-w-4xl">
+                <h3 class="text-4xl font-bold text-f0f8ff mb-8 text-center">Common Challenges & Solutions</h3>
+                <p class="text-lg text-cambridge-blue mb-10 text-center">Encountering issues during setup is common. This section provides quick solutions to the most frequently faced problems with GCP HTTP Load Balancers.</p>
+
+                <div class="space-y-4">
+                    <div class="accordion-item bg-hookers-green p-6 rounded-2xl shadow-md border border-dark-slate-gray">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            VM Not Appearing in Instance Group <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-2">**Solution**: Ensure that the Virtual Machine instance is created in the correct zone and network that is associated with the instance group.</p>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-hookers-green p-6 rounded-2xl shadow-md border border-dark-slate-gray">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Health Check Fails <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-2">**Solution**: Confirm that the Apache web server is running on the VM instances and that the default path ('/') is configured to respond with an HTTP 200 OK status. Check firewall rules to ensure health check probes can reach the instances.</p>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-hookers-green p-6 rounded-2xl shadow-md border border-dark-slate-gray">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Static IP Not Showing <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-2">**Solution**: Verify that the static IP address has been reserved as a `GLOBAL` type in GCP, which is required for external HTTP(S) load balancers.</p>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-hookers-green p-6 rounded-2xl shadow-md border border-dark-slate-gray">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Backend Service Empty <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-2">**Solution**: Confirm that the correct unmanaged instance group has been selected and associated with the backend service. Sometimes, the VM group might be unmanaged or simply not linked.</p>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-hookers-green p-6 rounded-2xl shadow-md border border-dark-slate-gray">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Load Balancer Not Forwarding Traffic <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-2">**Solution**: Double-check that a firewall rule is in place allowing TCP traffic on port 80 from the load balancer's health check IP ranges and from external users to your VM instances.</p>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-hookers-green p-6 rounded-2xl shadow-md border border-dark-slate-gray">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Unhealthy Status of Instances <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-2">**Solution**: Reconfirm the correct port (typically 80 for HTTP) and the request path (e.g., `/`) specified in the health check configuration. Any mismatch will cause instances to appear unhealthy.</p>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-hookers-green p-6 rounded-2xl shadow-md border border-dark-slate-gray">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            URL Map Misconfigured <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-2">**Solution**: Ensure that the URL map is correctly configured to point to the desired backend service. Incorrect host or path matchers can prevent traffic from reaching the intended backend.</p>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-hookers-green p-6 rounded-2xl shadow-md border border-dark-slate-gray">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Apache Not Installed or Running <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-2">**Solution**: When creating the VM instances, utilize a startup script to automatically install and start the Apache web server.</p>
+                        </div>
+                    </div>
+
+                    <div class="accordion-item bg-hookers-green p-6 rounded-2xl shadow-md border border-dark-slate-gray">
+                        <button class="accordion-header w-full text-left font-semibold text-xl text-f0f8ff flex justify-between items-center">
+                            Browser Timeout <span class="accordion-icon">➕</span>
+                        </button>
+                        <div class="accordion-content hidden text-cambridge-blue mt-4">
+                            <p class="mb-2">**Solution**: Verify that the VM instances have external IP addresses assigned and that Apache is actively listening on the correct port (80) for incoming connections.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="w-full bg-dark-slate-gray py-8 px-6 md:px-8 mt-12 shadow-inner">
+            <div class="container mx-auto text-center text-cambridge-blue text-sm">
+                &copy; 2025 GCP Load Balancer Explorer. All rights reserved. Designed for clarity and understanding.
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const workflowSteps = [
+            {
+                description: "A user opens their web browser and enters the global static IP address of your application, initiating the request.",
+                highlight: ["user-component", "static-ip-component", "arrow-user-to-ip"]
+            },
+            {
+                description: "The forwarding rule, configured to listen for HTTP traffic on port 80, intercepts the incoming request.",
+                highlight: ["forwarding-rule-component", "arrow-ip-to-forwarding"]
+            },
+            {
+                description: "The request is then passed to the Target HTTP Proxy.",
+                highlight: ["target-proxy-component", "arrow-forwarding-to-proxy"]
+            },
+            {
+                description: "The Target HTTP Proxy consults the URL map to determine which backend service is responsible for handling this specific request.",
+                highlight: ["url-map-component", "arrow-proxy-to-urlmap", "arrow-proxy-to-urlmap-desktop"]
+            },
+            {
+                description: "The identified backend service initiates a health check on the instances within its associated instance group to ensure they are responsive and ready to serve traffic.",
+                highlight: ["backend-service-component", "health-check-component", "arrow-urlmap-to-backend", "arrow-urlmap-to-backend-desktop", "arrow-backend-to-healthcheck", "arrow-backend-to-healthcheck-desktop"]
+            },
+            {
+                description: "If an instance is deemed healthy by the health check, the traffic is forwarded to one of the available VM instances in the instance group (e.g., Server 1 or Server 2).",
+                highlight: ["instance-group-component", "vm-instances-component", "arrow-healthcheck-to-instancegroup", "arrow-instancegroup-to-vm"]
+            },
+            {
+                description: "The Apache server running on the selected VM instance processes the request and responds with its unique message (e.g., 'Hello from Server 1').",
+                highlight: ["vm-instances-component", "arrow-vm-to-user"]
+            },
+            {
+                description: "Upon subsequent refreshes of the browser, the load balancer intelligently alternates the response between Server 1 and Server 2, demonstrating successful traffic distribution.",
+                highlight: ["user-component", "static-ip-component", "arrow-user-to-ip", "forwarding-rule-component", "arrow-ip-to-forwarding", "target-proxy-component", "arrow-forwarding-to-proxy", "url-map-component", "arrow-proxy-to-urlmap", "arrow-proxy-to-urlmap-desktop", "backend-service-component", "health-check-component", "arrow-urlmap-to-backend", "arrow-urlmap-to-backend-desktop", "arrow-backend-to-healthcheck", "arrow-backend-to-healthcheck-desktop", "instance-group-component", "vm-instances-component", "arrow-healthcheck-to-instancegroup", "arrow-instancegroup-to-vm", "arrow-vm-to-user"]
+            }
+        ];
+
+        let currentStep = 0;
+
+        const workflowDescription = document.getElementById('workflow-description');
+        const prevStepBtn = document.getElementById('prev-step-btn');
+        const nextStepBtn = document.getElementById('next-step-btn');
+        const workflowComponents = document.querySelectorAll('.workflow-comp');
+        const workflowArrows = document.querySelectorAll('.workflow-arrow');
+
+        function updateWorkflowDisplay() {
+            workflowComponents.forEach(comp => comp.classList.remove('highlight-workflow-component'));
+            workflowArrows.forEach(arrow => arrow.classList.remove('highlight-arrow'));
+
+            const step = workflowSteps[currentStep];
+            workflowDescription.textContent = `Step ${currentStep + 1}/${workflowSteps.length}: ${step.description}`;
+
+            step.highlight.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.classList.add('highlight-workflow-component');
+                    if (id.startsWith('arrow')) {
+                        element.classList.add('highlight-arrow');
+                    }
+                }
+            });
+
+            prevStepBtn.disabled = currentStep === 0;
+            nextStepBtn.disabled = currentStep === workflowSteps.length - 1;
+        }
+
+        prevStepBtn.addEventListener('click', () => {
+            if (currentStep > 0) {
+                currentStep--;
+                updateWorkflowDisplay();
+            }
+        });
+
+        nextStepBtn.addEventListener('click', () => {
+            if (currentStep < workflowSteps.length - 1) {
+                currentStep++;
+                updateWorkflowDisplay();
+            }
+        });
+
+        // Initialize workflow display
+        updateWorkflowDisplay();
+
+        // Component Details Data
+        const componentDetailsData = {
+            vpc: {
+                title: "Virtual Private Cloud (VPC) & Subnet",
+                description: "A VPC is a logically isolated section of the Google Cloud network where you can launch your GCP resources. A subnet is a defined IP address range within a VPC network.",
+                purpose: "Provides a secure and private networking environment for your VM instances and other resources, defining their internal IP address space."
+            },
+            firewall: {
+                title: "Firewall Rules",
+                description: "Rules that control incoming (ingress) and outgoing (egress) traffic to and from your VM instances.",
+                purpose: "Crucial for security, allowing necessary traffic (like HTTP on port 80 and SSH on port 22 for administration) while blocking unwanted connections."
+            },
+            vm: {
+                title: "VM Instances (Web Servers)",
+                description: "Virtual machines, specifically `e2-micro` instances in this project, running Apache web servers. Each VM hosts a unique `index.html` file (e.g., 'Hello from Server 1', 'Hello from Server 2') to visually demonstrate load balancing.",
+                purpose: "These are the backend servers that process client requests and serve web content."
+            },
+            instanceGroup: {
+                title: "Unmanaged Instance Group",
+                description: "A logical collection of VM instances that you create and manage manually. Unlike managed instance groups, it doesn't automatically scale or perform auto-healing.",
+                purpose: "Connects the individual VM instances to the backend service, allowing them to be treated as a single entity for load balancing."
+            },
+            healthCheck: {
+                title: "HTTP Health Check",
+                description: "A mechanism that periodically probes the health of the instances in the instance group.",
+                purpose: "Ensures that the load balancer only sends traffic to healthy instances. If an instance fails the health check, it's temporarily removed from the load balancing pool until it recovers."
+            },
+            backendService: {
+                title: "Backend Service",
+                description: "Defines how traffic should be distributed to the instances in an instance group. It includes the health check configuration and determines load balancing behavior.",
+                purpose: "Acts as the bridge between the load balancer's frontend and the backend VM instances, using health checks to direct traffic."
+            },
+            urlMap: {
+                title: "URL Map",
+                description: "A resource that defines routing rules for incoming HTTP(S) requests. It specifies which backend service or host should handle requests based on URL paths or hostnames.",
+                purpose: "Routes incoming HTTP traffic to the correct backend service. In a simple setup, all requests might go to a single backend service."
+            },
+            targetProxy: {
+                title: "Target HTTP Proxy",
+                description: "A component that terminates incoming HTTP connections from clients and forwards them to the URL map.",
+                purpose: "Uses the URL map to determine the appropriate backend service for each request."
+            },
+            forwardingRule: {
+                title: "Forwarding Rule",
+                description: "Listens for incoming external traffic on a specific IP address and port and directs it to a target proxy (in this case, the Target HTTP Proxy).",
+                purpose: "The entry point for external traffic to the load balancer. It maps the external static IP address to the load balancer's backend."
+            },
+            staticIp: {
+                title: "Reserved Global Static IP Address",
+                description: "A public, permanent, and globally accessible IP address that does not change.",
+                purpose: "Provides a stable and easily accessible endpoint for users to reach your load-balanced application."
+            }
+        };
+
+        const componentCards = document.querySelectorAll('.component-card');
+        const componentDetail = document.getElementById('component-detail');
+        const detailTitle = document.getElementById('detail-title');
+        const detailDescription = document.getElementById('detail-description');
+        const detailPurpose = document.getElementById('detail-purpose');
+        const closeDetailBtn = document.getElementById('close-detail-btn');
+
+        componentCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const componentId = card.dataset.component;
+                const data = componentDetailsData[componentId];
+                if (data) {
+                    detailTitle.textContent = data.title;
+                    detailDescription.textContent = data.description;
+                    detailPurpose.textContent = `Purpose: ${data.purpose}`;
+                    componentDetail.classList.remove('hidden');
+                    componentDetail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        closeDetailBtn.addEventListener('click', () => {
+            componentDetail.classList.add('hidden');
+        });
+
+        // Accordion functionality for Benefits, Troubleshooting, and Setup sections
+        const accordionHeaders = document.querySelectorAll('.accordion-header');
+
+        accordionHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const item = header.closest('.accordion-item');
+                const content = item.querySelector('.accordion-content');
+                const icon = header.querySelector('.accordion-icon');
+
+                content.classList.toggle('hidden');
+                if (content.classList.contains('hidden')) {
+                    icon.textContent = '➕';
+                } else {
+                    icon.textContent = '➖';
+                }
+            });
+        });
+
+        // Sidebar logic
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarClose = document.getElementById('sidebar-close');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const navLinks = sidebar.querySelectorAll('a');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        sidebarToggle.addEventListener('click', toggleSidebar);
+        sidebarClose.addEventListener('click', toggleSidebar);
+        overlay.addEventListener('click', toggleSidebar);
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (sidebar.classList.contains('open')) {
+                    toggleSidebar(); // Close sidebar on navigation click
+                }
+            });
+        });
+    </script>
+</body>
+</html>
