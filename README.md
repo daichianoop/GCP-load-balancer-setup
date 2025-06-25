@@ -1,15 +1,14 @@
 <div align="center">
   <img src="https://github.com/daichianoop/GCP-load-balancer-setup/blob/main/gcp.png?raw=true" alt="logo" width="50" style="display: inline-block; vertical-align: middle;" />
+  <h1 style="display: inline-block; vertical-align: middle;">GCP HTTP Load Balancer Setup</h1>
 </div>
-# GCP HTTP Load Balancer Setup
 
 <div align="center">
-  <div>
-<img src="https://img.shields.io/badge/-HTML-black?style=for-the-badge&logoColor=white&logo=html5&color=E34F26" alt="HTML" />
-<img src="https://img.shields.io/badge/-CSS-black?style=for-the-badge&logoColor=white&logo=css3&color=1572B6" alt="CSS" />
-<img src="https://img.shields.io/badge/-JavaScript-black?style=for-the-badge&logoColor=white&logo=javascript&color=F7DF1E" alt="JavaScript" />
-<img src="https://img.shields.io/badge/-Google_Cloud_Platform-black?style=for-the-badge&logoColor=white&logo=googlecloud&color=4285F4" alt="Google Cloud Platform" />
-  </div>
+  <img src="https://img.shields.io/badge/-HTML-black?style=for-the-badge&logoColor=white&logo=html5&color=E34F26" alt="HTML" />
+  <img src="https://img.shields.io/badge/-CSS-black?style=for-the-badge&logoColor=white&logo=css3&color=1572B6" alt="CSS" />
+  <img src="https://img.shields.io/badge/-JavaScript-black?style=for-the-badge&logoColor=white&logo=javascript&color=F7DF1E" alt="JavaScript" />
+  <img src="https://img.shields.io/badge/-Google_Cloud_Platform-black?style=for-the-badge&logoColor=white&logo=googlecloud&color=4285F4" alt="Google Cloud Platform" />
+</div>
 
 This repository contains the documentation and an interactive Single-Page Application (SPA) demonstrating a comprehensive HTTP Load Balancing setup on Google Cloud Platform (GCP). The project showcases how to deploy a highly available and scalable web application by efficiently distributing incoming traffic across multiple Virtual Machine (VM) instances running Apache web servers.
 
