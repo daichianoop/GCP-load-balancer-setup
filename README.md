@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://github.com/daichianoop/GCP-load-balancer-setup/blob/main/gcp.png?raw=true" alt="logo" width="50" style="display: inline-block; vertical-align: middle;" />
-  <h1 style="display: inline-block; vertical-align: middle;">GCP HTTP Load Balancer Setup</h1>
 </div>
+# GCP HTTP Load Balancer Setup
 
 <div align="center">
   <div>
